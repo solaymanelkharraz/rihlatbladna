@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+@theme {
+  --color-primary: #2563EB;   /* Royal Blue */
+  --color-secondary: #F59E0B; /* Moroccan Amber */
+  --color-dark: #1E293B;      /* Slate Dark */
+}

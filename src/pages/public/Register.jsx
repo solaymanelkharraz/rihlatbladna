@@ -1,121 +1,161 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaUser, FaEnvelope, FaLock, FaBuilding, FaArrowLeft } from 'react-icons/fa';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [role, setRole] = useState('traveler'); // 'traveler' or 'agency'
+  
+  // Local state for LocalStorage prep
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleRegister = (e) => {
+    e.preventDefault();
+    console.log("Registering as", role, "with:", { name, email, password });
+    // TODO: Wire up to LocalStorage fake API later
+    // Redirect based on role
+    if (role === 'agency') {
+      navigate('/agency/dashboard');
+    } else {
+      navigate('/traveler/profile');
+    }
+  };
 
   return (
-    <div className="min-h-screen flex bg-white">
+    <div className="min-h-screen flex bg-slate-50 font-sans selection:bg-blue-500 selection:text-white">
       
-      {/* --- LEFT SIDE: IMAGE (Changes based on role) --- */}
-      <div className="hidden lg:flex w-1/2 bg-slate-900 relative items-center justify-center overflow-hidden">
+      {/* --- LEFT SIDE: IMAGE WITH PREMIUM OVERLAY --- */}
+      <div className="hidden lg:flex w-1/2 relative items-center justify-center overflow-hidden">
         <div 
-          className="absolute inset-0 bg-cover bg-center opacity-60 transition-all duration-700"
+          className="absolute inset-0 bg-cover bg-center transition-all duration-[10000ms] transform scale-105"
           style={{ 
             backgroundImage: role === 'traveler' 
-              ? "url('https://images.unsplash.com/photo-1564507592333-c60657eea523?q=80&w=2071')" // Blue City for Traveler
-              : "url('https://images.unsplash.com/photo-1518182170546-0766ce6fec56?q=80&w=2070')" // Workspace/Desert for Agency
+              ? "url('https://images.unsplash.com/photo-1564507592333-c60657eea523?q=80&w=2071')" // Blue City
+              : "url('https://images.unsplash.com/photo-1518182170546-0766ce6fec56?q=80&w=2070')" // Workspace/Desert
           }}
         ></div>
-        <div className="relative z-10 text-center px-10 max-w-lg">
-          <h2 className="text-4xl font-bold text-white mb-4">
-            {role === 'traveler' ? "Start Your Adventure" : "Grow Your Business"}
-          </h2>
-          <p className="text-slate-200 text-lg">
+        <div className={`absolute inset-0 backdrop-blur-[2px] transition-colors duration-1000 ${role === 'traveler' ? 'bg-gradient-to-br from-blue-900/90 via-slate-900/80 to-black/90' : 'bg-gradient-to-br from-purple-900/90 via-slate-900/80 to-black/90'}`}></div>
+        
+        <div className="relative z-10 text-center px-12 max-w-xl animate-fade-in-up">
+          <div className="inline-block mb-6 p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20 shadow-2xl">
+            <h2 className={`text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r ${role === 'traveler' ? 'from-blue-400 to-amber-300' : 'from-purple-400 to-amber-300'}`}>
+              {role === 'traveler' ? "Start Your Adventure" : "Grow Your Business"}
+            </h2>
+          </div>
+          <p className="text-slate-300 text-lg font-light leading-relaxed">
             {role === 'traveler' 
-              ? "Join thousands of travelers discovering the hidden gems of Morocco."
-              : "Connect with travelers, manage bookings, and showcase your tours to the world."}
+              ? "Join thousands of travelers discovering the hidden gems of Morocco. Authentic experiences await."
+              : "Connect with travelers, manage bookings seamlessly, and showcase your best tours to the world."}
           </p>
         </div>
       </div>
 
-      {/* --- RIGHT SIDE: FORM --- */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 relative overflow-y-auto">
+      {/* --- RIGHT SIDE: FORM AREA --- */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 sm:p-12 relative bg-white overflow-y-auto">
         
-        <Link to="/" className="absolute top-8 left-8 flex items-center gap-2 text-slate-500 hover:text-blue-600 transition font-bold">
-          <FaArrowLeft /> Home
+        <Link to="/" className="absolute top-8 left-8 sm:top-12 sm:left-12 flex items-center gap-2 text-slate-400 hover:text-blue-600 transition-colors font-semibold group">
+          <FaArrowLeft className="transform group-hover:-translate-x-1 transition-transform" /> 
+          Back to Home
         </Link>
 
-        <div className="w-full max-w-md mt-12 lg:mt-0">
+        <div className="w-full max-w-md mt-16 lg:mt-0 animate-fade-in">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Create Account</h1>
-            <p className="text-slate-500">Join RihlatBladna today.</p>
+            <h1 className="text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">Create Account</h1>
+            <p className="text-slate-500 text-lg">Join RihlatBladna today.</p>
           </div>
 
           {/* Role Switcher */}
-          <div className="bg-slate-100 p-1 rounded-xl flex mb-8">
+          <div className="bg-slate-100 p-1.5 rounded-2xl flex mb-8 shadow-inner">
             <button 
+              type="button"
               onClick={() => setRole('traveler')}
-              className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${role === 'traveler' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${role === 'traveler' ? 'bg-white text-blue-600 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transform scale-[1.02]' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
             >
               I am a Traveler
             </button>
             <button 
+              type="button"
               onClick={() => setRole('agency')}
-              className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${role === 'agency' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${role === 'agency' ? 'bg-white text-purple-600 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transform scale-[1.02]' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
             >
               I am an Agency
             </button>
           </div>
 
           {/* Form */}
-          <form className="space-y-5">
+          <form className="space-y-6" onSubmit={handleRegister}>
             
             {/* Name */}
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
+            <div className="group">
+              <label className={`block text-sm font-semibold text-slate-700 mb-2 transition-colors ${role === 'traveler' ? 'group-focus-within:text-blue-600' : 'group-focus-within:text-purple-600'}`}>
                 {role === 'traveler' ? "Full Name" : "Agency Name"}
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 transition-colors ${role === 'traveler' ? 'group-focus-within:text-blue-500' : 'group-focus-within:text-purple-500'}`}>
                   {role === 'traveler' ? <FaUser /> : <FaBuilding />}
                 </div>
                 <input 
                   type="text" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder={role === 'traveler' ? "Soulayman Elkharraz" : "Best Morocco Tours"} 
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-medium"
+                  className={`w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white outline-none transition-all font-medium text-slate-700 placeholder:text-slate-400 ${role === 'traveler' ? 'focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10' : 'focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10'}`}
+                  required
                 />
               </div>
             </div>
 
             {/* Email */}
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
+            <div className="group">
+              <label className={`block text-sm font-semibold text-slate-700 mb-2 transition-colors ${role === 'traveler' ? 'group-focus-within:text-blue-600' : 'group-focus-within:text-purple-600'}`}>Email Address</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 transition-colors ${role === 'traveler' ? 'group-focus-within:text-blue-500' : 'group-focus-within:text-purple-500'}`}>
                   <FaEnvelope />
                 </div>
                 <input 
                   type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com" 
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-medium"
+                  className={`w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white outline-none transition-all font-medium text-slate-700 placeholder:text-slate-400 ${role === 'traveler' ? 'focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10' : 'focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10'}`}
+                  required
                 />
               </div>
             </div>
 
             {/* Password */}
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Password</label>
+            <div className="group">
+              <label className={`block text-sm font-semibold text-slate-700 mb-2 transition-colors ${role === 'traveler' ? 'group-focus-within:text-blue-600' : 'group-focus-within:text-purple-600'}`}>Password</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 transition-colors ${role === 'traveler' ? 'group-focus-within:text-blue-500' : 'group-focus-within:text-purple-500'}`}>
                   <FaLock />
                 </div>
                 <input 
                   type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="Create a strong password" 
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-medium"
+                  className={`w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white outline-none transition-all font-medium text-slate-700 placeholder:text-slate-400 ${role === 'traveler' ? 'focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10' : 'focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10'}`}
+                  required
                 />
               </div>
             </div>
 
-            <button className={`w-full text-white font-bold py-3 rounded-xl shadow-lg transition-all transform active:scale-95 ${role === 'traveler' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/30'}`}>
+            <button 
+              type="submit"
+              className={`w-full text-white font-bold py-4 rounded-2xl shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 active:scale-95 flex justify-center items-center gap-2 ${role === 'traveler' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20 hover:shadow-blue-600/30' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20 hover:shadow-purple-600/30'}`}
+            >
               {role === 'traveler' ? "Sign Up as Traveler" : "Register Agency"}
             </button>
           </form>
 
-          <p className="text-center mt-8 text-slate-500 text-sm">
-            Already have an account? <Link to="/login" className="text-blue-600 font-bold hover:underline">Log in</Link>
+          <p className="text-center mt-10 text-slate-500 font-medium">
+            Already have an account?{' '}
+            <Link to="/login" className={`font-bold hover:underline transition-colors ${role === 'traveler' ? 'text-blue-600 hover:text-blue-700' : 'text-purple-600 hover:text-purple-700'}`}>
+              Log in here
+            </Link>
           </p>
         </div>
       </div>

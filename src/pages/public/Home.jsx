@@ -26,6 +26,16 @@ const Home = () => {
   const [activeSearchTab, setActiveSearchTab] = useState('tours');
   const [currentBgIndex, setCurrentBgIndex] = useState(0);
   
+  // State for Tour Search
+  const [tourDestination, setTourDestination] = useState('');
+  const [tourDate, setTourDate] = useState('');
+  const [tourBudget, setTourBudget] = useState('Any');
+
+  // State for Agency Search
+  const [agencyName, setAgencyName] = useState('');
+  const [agencyCity, setAgencyCity] = useState('All');
+  const [agencyService, setAgencyService] = useState('All');
+  
   const backgrounds = [
     "https://images.unsplash.com/photo-1539020140153-e479b8c22e70?q=80&w=2070",
     "https://images.unsplash.com/photo-1564507592333-c60657eea523?q=80&w=2071",
@@ -81,26 +91,26 @@ const Home = () => {
 
       {/* ==================== 2. DYNAMIC SEARCH WIDGET ==================== */}
       <div className="relative z-30 -mt-32 px-4 w-full flex justify-center">
-        <div className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100">
+        <div className="w-full max-w-6xl bg-white/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgb(0,0,0,0.1)] overflow-hidden border border-white/50">
           
           {/* Tabs */}
-          <div className="flex bg-slate-50 border-b border-slate-200">
+          <div className="flex bg-slate-50/80 border-b border-slate-200/60">
             <button 
               onClick={() => setActiveSearchTab('tours')}
-              className={`flex-1 py-5 text-sm font-bold uppercase tracking-wider transition-all ${
+              className={`flex-1 py-6 text-sm font-bold uppercase tracking-wider transition-all duration-300 ${
                 activeSearchTab === 'tours' 
                 ? 'bg-white text-blue-600 shadow-sm border-t-4 border-blue-600' 
-                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'
               }`}
             >
               <FaRoute className="inline mb-1 mr-2" /> Find Tours
             </button>
             <button 
               onClick={() => setActiveSearchTab('agencies')}
-              className={`flex-1 py-5 text-sm font-bold uppercase tracking-wider transition-all ${
+              className={`flex-1 py-6 text-sm font-bold uppercase tracking-wider transition-all duration-300 ${
                 activeSearchTab === 'agencies' 
-                ? 'bg-white text-blue-600 shadow-sm border-t-4 border-blue-600' 
-                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                ? 'bg-white text-purple-600 shadow-sm border-t-4 border-purple-600' 
+                : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'
               }`}
             >
               <FaBuilding className="inline mb-1 mr-2" /> Find Agencies
@@ -108,114 +118,157 @@ const Home = () => {
           </div>
 
           {/* Search Inputs Container */}
-          <div className="p-6 md:p-8 bg-white min-h-[140px] flex items-center">
+          <div className="p-6 md:p-8 min-h-[140px] flex items-center bg-white/50">
             
             {/* --- FORM 1: FIND TOURS --- */}
             {activeSearchTab === 'tours' ? (
-              <div className="flex flex-col lg:flex-row gap-4 items-center w-full animate-fade-in-up">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  console.log("Searching Tours:", { tourDestination, tourDate, tourBudget });
+                  // TODO: Navigate or filter state later
+                }}
+                className="flex flex-col lg:flex-row gap-4 items-center w-full animate-fade-in-up"
+              >
                 {/* Destination */}
-                <div className="flex-1 w-full bg-slate-50 rounded-2xl px-4 py-3 border border-transparent focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 transition-all group">
+                <div className="flex-1 w-full bg-white rounded-2xl px-4 py-3.5 border border-slate-100 shadow-sm focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg group-focus-within:bg-blue-600 group-focus-within:text-white transition-colors">
+                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-focus-within:bg-blue-600 group-focus-within:text-white transition-colors duration-300">
                       <FaMapMarkerAlt />
                     </div>
                     <div className="flex flex-col w-full">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Where to?</label>
-                      <input type="text" placeholder="Chefchaouen, Atlas..." className="bg-transparent outline-none font-bold text-slate-700 w-full placeholder-slate-300" />
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Where to?</label>
+                      <input 
+                        type="text" 
+                        value={tourDestination}
+                        onChange={(e) => setTourDestination(e.target.value)}
+                        placeholder="Chefchaouen, Atlas..." 
+                        className="bg-transparent outline-none font-bold text-slate-700 w-full placeholder-slate-300" 
+                      />
                     </div>
                   </div>
                 </div>
 
                 {/* Date */}
-                <div className="flex-1 w-full bg-slate-50 rounded-2xl px-4 py-3 border border-transparent focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 transition-all group">
+                <div className="flex-1 w-full bg-white rounded-2xl px-4 py-3.5 border border-slate-100 shadow-sm focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg group-focus-within:bg-blue-600 group-focus-within:text-white transition-colors">
+                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-focus-within:bg-blue-600 group-focus-within:text-white transition-colors duration-300">
                       <FaCalendarAlt />
                     </div>
                     <div className="flex flex-col w-full">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">When?</label>
-                      <input type="date" className="bg-transparent outline-none font-bold text-slate-700 w-full text-sm" />
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">When?</label>
+                      <input 
+                        type="date" 
+                        value={tourDate}
+                        onChange={(e) => setTourDate(e.target.value)}
+                        className="bg-transparent outline-none font-bold text-slate-700 w-full text-sm cursor-pointer" 
+                      />
                     </div>
                   </div>
                 </div>
 
                 {/* Budget */}
-                <div className="flex-1 w-full bg-slate-50 rounded-2xl px-4 py-3 border border-transparent focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10 transition-all group">
+                <div className="flex-1 w-full bg-white rounded-2xl px-4 py-3.5 border border-slate-100 shadow-sm focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg group-focus-within:bg-blue-600 group-focus-within:text-white transition-colors">
+                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-focus-within:bg-blue-600 group-focus-within:text-white transition-colors duration-300">
                       <FaMoneyBillWave />
                     </div>
                     <div className="flex flex-col w-full">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Budget</label>
-                      <select className="bg-transparent outline-none font-bold text-slate-700 w-full cursor-pointer">
-                        <option>Any Budget</option>
-                        <option>Economy</option>
-                        <option>Luxury</option>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Budget</label>
+                      <select 
+                        value={tourBudget}
+                        onChange={(e) => setTourBudget(e.target.value)}
+                        className="bg-transparent outline-none font-bold text-slate-700 w-full cursor-pointer appearance-none"
+                      >
+                        <option value="Any">Any Budget</option>
+                        <option value="Economy">Economy</option>
+                        <option value="Luxury">Luxury</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                <button className="w-full lg:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-10 rounded-2xl shadow-lg shadow-blue-600/30 transform active:scale-95 transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full lg:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-4.5 px-10 rounded-2xl shadow-[0_8px_30px_rgb(37,99,235,0.2)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.3)] transform active:scale-95 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2">
                   <FaSearch /> <span>Search Tours</span>
                 </button>
-              </div>
+              </form>
             ) : (
               /* --- FORM 2: FIND AGENCIES --- */
-              <div className="flex flex-col lg:flex-row gap-4 items-center w-full animate-fade-in-up">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  console.log("Searching Agencies:", { agencyName, agencyCity, agencyService });
+                  // TODO: Navigate or filter state later
+                }}
+                className="flex flex-col lg:flex-row gap-4 items-center w-full animate-fade-in-up"
+              >
                 {/* Agency Name */}
-                <div className="flex-1 w-full bg-slate-50 rounded-2xl px-4 py-3 border border-transparent focus-within:border-purple-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-purple-500/10 transition-all group">
+                <div className="flex-1 w-full bg-white rounded-2xl px-4 py-3.5 border border-slate-100 shadow-sm focus-within:border-purple-500 focus-within:ring-4 focus-within:ring-purple-500/10 transition-all group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 text-purple-600 rounded-lg group-focus-within:bg-purple-600 group-focus-within:text-white transition-colors">
+                    <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl group-focus-within:bg-purple-600 group-focus-within:text-white transition-colors duration-300">
                       <FaBuilding />
                     </div>
                     <div className="flex flex-col w-full">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Agency Name</label>
-                      <input type="text" placeholder="e.g. Sahara Travels" className="bg-transparent outline-none font-bold text-slate-700 w-full placeholder-slate-300" />
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Agency Name</label>
+                      <input 
+                        type="text" 
+                        value={agencyName}
+                        onChange={(e) => setAgencyName(e.target.value)}
+                        placeholder="e.g. Sahara Travels" 
+                        className="bg-transparent outline-none font-bold text-slate-700 w-full placeholder-slate-300" 
+                      />
                     </div>
                   </div>
                 </div>
 
                 {/* City */}
-                <div className="flex-1 w-full bg-slate-50 rounded-2xl px-4 py-3 border border-transparent focus-within:border-purple-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-purple-500/10 transition-all group">
+                <div className="flex-1 w-full bg-white rounded-2xl px-4 py-3.5 border border-slate-100 shadow-sm focus-within:border-purple-500 focus-within:ring-4 focus-within:ring-purple-500/10 transition-all group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 text-purple-600 rounded-lg group-focus-within:bg-purple-600 group-focus-within:text-white transition-colors">
+                    <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl group-focus-within:bg-purple-600 group-focus-within:text-white transition-colors duration-300">
                       <FaMapMarkerAlt />
                     </div>
                     <div className="flex flex-col w-full">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">City</label>
-                      <select className="bg-transparent outline-none font-bold text-slate-700 w-full cursor-pointer">
-                        <option>All Cities</option>
-                        <option>Casablanca</option>
-                        <option>Marrakech</option>
-                        <option>Tangier</option>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">City</label>
+                      <select 
+                        value={agencyCity}
+                        onChange={(e) => setAgencyCity(e.target.value)}
+                        className="bg-transparent outline-none font-bold text-slate-700 w-full cursor-pointer appearance-none"
+                      >
+                        <option value="All">All Cities</option>
+                        <option value="Casablanca">Casablanca</option>
+                        <option value="Marrakech">Marrakech</option>
+                        <option value="Tangier">Tangier</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
                 {/* Service Type */}
-                <div className="flex-1 w-full bg-slate-50 rounded-2xl px-4 py-3 border border-transparent focus-within:border-purple-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-purple-500/10 transition-all group">
+                <div className="flex-1 w-full bg-white rounded-2xl px-4 py-3.5 border border-slate-100 shadow-sm focus-within:border-purple-500 focus-within:ring-4 focus-within:ring-purple-500/10 transition-all group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 text-purple-600 rounded-lg group-focus-within:bg-purple-600 group-focus-within:text-white transition-colors">
+                    <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl group-focus-within:bg-purple-600 group-focus-within:text-white transition-colors duration-300">
                       <FaBriefcase />
                     </div>
                     <div className="flex flex-col w-full">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Service</label>
-                      <select className="bg-transparent outline-none font-bold text-slate-700 w-full cursor-pointer">
-                        <option>All Services</option>
-                        <option>Tours & Trips</option>
-                        <option>Car Rental</option>
-                        <option>Local Guides</option>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Service</label>
+                      <select 
+                        value={agencyService}
+                        onChange={(e) => setAgencyService(e.target.value)}
+                        className="bg-transparent outline-none font-bold text-slate-700 w-full cursor-pointer appearance-none"
+                      >
+                        <option value="All">All Services</option>
+                        <option value="Tours & Trips">Tours & Trips</option>
+                        <option value="Car Rental">Car Rental</option>
+                        <option value="Local Guides">Local Guides</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                <button className="w-full lg:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-10 rounded-2xl shadow-lg shadow-purple-600/30 transform active:scale-95 transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="w-full lg:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-4.5 px-10 rounded-2xl shadow-[0_8px_30px_rgb(147,51,234,0.2)] hover:shadow-[0_8px_30px_rgb(147,51,234,0.3)] transform active:scale-95 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2">
                   <FaSearch /> <span>Find Agencies</span>
                 </button>
-              </div>
+              </form>
             )}
           </div>
         </div>
