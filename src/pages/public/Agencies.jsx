@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { FaSearch, FaMapMarkerAlt, FaUserFriends, FaCheckCircle, FaTrophy, FaStar } from 'react-icons/fa';
 import Navbar from '../../components/layout/Navbar';
 

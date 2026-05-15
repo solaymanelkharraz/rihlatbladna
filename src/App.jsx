@@ -42,8 +42,6 @@ function App() {
         {/* === AGENCY ROUTES === */}
         <Route path="/agency/dashboard" element={<AgencyDashboard />} />
         <Route path="/agency/create-offer" element={<CreateOffer />} />
-        <Route path="/agency/dashboard" element={<AgencyDashboard />} />
-        <Route path="/agency/create-offer" element={<CreateOffer />} />
         {/* NEW ROUTES */}
         <Route path="/agency/offers" element={<MyOffers />} />
         <Route path="/agency/bookings" element={<Bookings />} />

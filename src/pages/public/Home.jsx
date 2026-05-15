@@ -47,7 +47,7 @@ const Home = () => {
       setCurrentBgIndex((prev) => (prev + 1) % backgrounds.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, []);
+  }, [backgrounds.length]);
 
   return (
     <div className="font-sans text-slate-800 bg-slate-50 min-h-screen flex flex-col">
