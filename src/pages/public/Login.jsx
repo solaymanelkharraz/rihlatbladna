@@ -1,20 +1,32 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaEnvelope, FaLock, FaGoogle, FaFacebook, FaArrowLeft } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaGoogle, FaFacebook, FaArrowLeft, FaExclamationCircle } from 'react-icons/fa';
+import { useAuth } from '../../context/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login, showAlert } = useAuth();
   
-  // Local state for LocalStorage integration prep
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    console.log("Logging in with:", { email, password });
-    // TODO: Wire up to LocalStorage fake API later
-    // Redirect to the dashboard
-    navigate('/traveler/profile');
+    setError('');
+    
+    const res = await login(email, password);
+    if (res.success) {
+      if (res.user.role === 'admin') {
+        navigate('/admin');
+      } else if (res.user.role === 'agency') {
+        navigate('/agency/dashboard');
+      } else {
+        navigate('/traveler/profile');
+      }
+    } else {
+      setError(res.error);
+    }
   };
 
   return (
@@ -23,7 +35,7 @@ const Login = () => {
       <div className="hidden lg:flex w-1/2 relative items-center justify-center overflow-hidden">
         <div 
           className="absolute inset-0 bg-cover bg-center transform scale-105 transition-transform duration-[10000ms]" 
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1539020140153-e479b8c22e70?q=80&w=2070')" }}
+          style={{ backgroundImage: "url('/Sahara Desert Adventure.jpg')" }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-slate-900/80 to-black/90 backdrop-blur-[2px]"></div>
         
@@ -54,6 +66,13 @@ const Login = () => {
             <h1 className="text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">Log In</h1>
             <p className="text-slate-500 text-lg">Enter your details to access your account.</p>
           </div>
+
+          {error && (
+            <div className="bg-red-50 text-red-600 border border-red-200 p-4 rounded-2xl text-sm font-semibold mb-6 flex items-center gap-2">
+              <FaExclamationCircle className="text-lg shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
           <form className="space-y-6" onSubmit={handleLogin}>
             {/* Email Input */}
@@ -119,10 +138,16 @@ const Login = () => {
 
           {/* Social Buttons */}
           <div className="grid grid-cols-2 gap-4">
-            <button className="flex items-center justify-center gap-3 bg-white border border-slate-200 py-3.5 rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-all font-semibold text-slate-700 hover:-translate-y-0.5 shadow-sm hover:shadow">
+            <button 
+              onClick={() => showAlert("Social Authentication", "Google sign-in is a placeholder demonstration for this preview.", "info")}
+              className="flex items-center justify-center gap-3 bg-white border border-slate-200 py-3.5 rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-all font-semibold text-slate-700 hover:-translate-y-0.5 shadow-sm hover:shadow"
+            >
               <FaGoogle className="text-red-500 text-lg" /> Google
             </button>
-            <button className="flex items-center justify-center gap-3 bg-white border border-slate-200 py-3.5 rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-all font-semibold text-slate-700 hover:-translate-y-0.5 shadow-sm hover:shadow">
+            <button 
+              onClick={() => showAlert("Social Authentication", "Facebook sign-in is a placeholder demonstration for this preview.", "info")}
+              className="flex items-center justify-center gap-3 bg-white border border-slate-200 py-3.5 rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-all font-semibold text-slate-700 hover:-translate-y-0.5 shadow-sm hover:shadow"
+            >
               <FaFacebook className="text-blue-600 text-lg" /> Facebook
             </button>
           </div>

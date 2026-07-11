@@ -1,25 +1,31 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaUser, FaEnvelope, FaLock, FaBuilding, FaArrowLeft } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaBuilding, FaArrowLeft, FaExclamationCircle } from 'react-icons/fa';
+import { useAuth } from '../../context/AuthContext';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { register } = useAuth();
+
   const [role, setRole] = useState('traveler'); // 'traveler' or 'agency'
-  
-  // Local state for LocalStorage prep
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    console.log("Registering as", role, "with:", { name, email, password });
-    // TODO: Wire up to LocalStorage fake API later
-    // Redirect based on role
-    if (role === 'agency') {
-      navigate('/agency/dashboard');
+    setError('');
+
+    const res = await register(name, email, password, role);
+    if (res.success) {
+      if (role === 'agency') {
+        navigate('/agency/dashboard');
+      } else {
+        navigate('/traveler/profile');
+      }
     } else {
-      navigate('/traveler/profile');
+      setError(res.error);
     }
   };
 
@@ -32,8 +38,8 @@ const Register = () => {
           className="absolute inset-0 bg-cover bg-center transition-all duration-[10000ms] transform scale-105"
           style={{ 
             backgroundImage: role === 'traveler' 
-              ? "url('https://images.unsplash.com/photo-1564507592333-c60657eea523?q=80&w=2071')" // Blue City
-              : "url('https://images.unsplash.com/photo-1518182170546-0766ce6fec56?q=80&w=2070')" // Workspace/Desert
+              ? "url('/morocco1.jpg')" 
+              : "url('/Sahara Desert Adventure.jpg')" 
           }}
         ></div>
         <div className={`absolute inset-0 backdrop-blur-[2px] transition-colors duration-1000 ${role === 'traveler' ? 'bg-gradient-to-br from-blue-900/90 via-slate-900/80 to-black/90' : 'bg-gradient-to-br from-purple-900/90 via-slate-900/80 to-black/90'}`}></div>
@@ -65,6 +71,13 @@ const Register = () => {
             <h1 className="text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">Create Account</h1>
             <p className="text-slate-500 text-lg">Join RihlatBladna today.</p>
           </div>
+
+          {error && (
+            <div className="bg-red-50 text-red-600 border border-red-200 p-4 rounded-2xl text-sm font-semibold mb-6 flex items-center gap-2">
+              <FaExclamationCircle className="text-lg shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
           {/* Role Switcher */}
           <div className="bg-slate-100 p-1.5 rounded-2xl flex mb-8 shadow-inner">
