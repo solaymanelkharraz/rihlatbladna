@@ -35,7 +35,12 @@ const Home = () => {
     .slice()
     .sort((a, b) => (b.isBoosted ? 1 : 0) - (a.isBoosted ? 1 : 0))
     .slice(0, 4);
-  const agenciesList = (agencies || []).filter(u => u.role === 'agency').slice(0, 3);
+  const baseAgencies = (agencies || []).filter(u => u.role === 'agency');
+  const topAgenciesSorted = baseAgencies
+    .slice()
+    .sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0));
+
+  const agenciesList = topAgenciesSorted.slice(0, 6);
   const toursList = tours || [];
   
   // Search State
@@ -75,27 +80,18 @@ const Home = () => {
     };
   }, [activeStory]);
 
-  const baseAgencies = (agencies || []).filter(u => u.role === 'agency');
-  const simulatedAgencies = [
-    { id: 'sim_1', name: "Atlas Trekking", avatar: "/Morocco.jpg", avatar_url: "/Morocco.jpg", story_image_url: "/Chefchaouen-tours.jpg" },
-    { id: 'sim_2', name: "Riad Journeys", avatar: "/marrakech medina.jpg", avatar_url: "/marrakech medina.jpg", story_image_url: "/el-attarine-medersa-in-fez.jpg" },
-    { id: 'sim_3', name: "Desert Nomads", avatar: "/sahara-desert-maroc-marrocain-8.webp", avatar_url: "/sahara-desert-maroc-marrocain-8.webp", story_image_url: "/Sahara Desert Adventure.jpg" },
-    { id: 'sim_4', name: "Blue City Tours", avatar: "/Fes.jpg", avatar_url: "/Fes.jpg", story_image_url: "/morocco1.jpg" },
-  ];
+  // Top 10 agencies for live stories marquee
+  const top10Agencies = topAgenciesSorted.slice(0, 10);
 
-  const allStories = [
-    ...baseAgencies.map(a => ({
-      id: a.id,
-      name: a.name,
-      avatar: a.avatar_url || "/MorP.jpg",
-      story_image_url: a.story_image_url || "/Sahara Desert Adventure.jpg",
-      isReal: true
-    })),
-    ...simulatedAgencies.map(s => ({
-      ...s,
-      isReal: false
-    }))
-  ];
+  const allStories = top10Agencies.map(a => ({
+    id: a.id,
+    name: a.name,
+    avatar: a.avatar || a.avatar_url || "/MorP.jpg",
+    story_image_url: a.storyImage || a.story_image_url || "/Sahara Desert Adventure.jpg",
+    location: a.location || 'Morocco',
+    bio: a.bio || "Specialized in customized Moroccan adventures.",
+    isReal: true
+  }));
 
   // Background carousel ticker
   useEffect(() => {
@@ -839,7 +835,7 @@ const Home = () => {
               />
               {/* Optional Text Overlay */}
               <div className="absolute bottom-20 left-0 right-0 px-6 py-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
-                <p className="text-sm font-semibold italic">"Exploring the golden dunes of Merzouga with our amazing group today! 🐪✨"</p>
+                <p className="text-sm font-semibold italic">"{activeStory.bio || 'Discover authentic Moroccan experiences and unforgettable adventures!'}"</p>
               </div>
             </div>
 
