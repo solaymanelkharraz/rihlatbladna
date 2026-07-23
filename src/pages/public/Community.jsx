@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaHeart, FaComment, FaShare, FaMapMarkerAlt, FaCamera, FaSearch, FaEllipsisH, FaCompass, FaTimes, FaChevronLeft, FaChevronRight, FaCheck, FaCheckCircle, FaCommentDots } from 'react-icons/fa';
 import Navbar from '../../components/layout/Navbar';
 import { useAuth } from '../../context/AuthContext';
+import StoryViewer from '../../components/common/StoryViewer';
+
 const Community = () => {
-  const { user, toggleFollowAgency, showAlert, posts, agencies, toggleLikePost, addCommentToPost, deletePost, updatePost, deleteCommentFromPost, viewStory, addInquiry } = useAuth();
+  const { user, toggleFollowAgency, showAlert, posts, agencies, toggleLikePost, addCommentToPost, deletePost, updatePost, deleteCommentFromPost, viewStory, addInquiry, shareStory } = useAuth();
   const navigate = useNavigate();
   
   const [commentTexts, setCommentTexts] = useState({}); // mapping postId -> commentText
@@ -24,6 +26,21 @@ const Community = () => {
       viewStory(activeStoryAgencyId);
     }
   }, [activeStoryAgencyId]);
+
+  // Smooth scroll to specific post when navigated via hash (e.g. #post-2)
+  useEffect(() => {
+    if (window.location.hash && posts && posts.length > 0) {
+      const targetId = window.location.hash.replace('#', '');
+      setTimeout(() => {
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-4', 'ring-blue-500/50', 'transition-all', 'duration-500');
+          setTimeout(() => el.classList.remove('ring-4', 'ring-blue-500/50'), 3000);
+        }
+      }, 150);
+    }
+  }, [posts, window.location.hash]);
 
   const handleLikeToggle = async (postId) => {
     if (!user) {
@@ -53,40 +70,128 @@ const Community = () => {
     setCommentTexts(prev => ({ ...prev, [postId]: value }));
   };
 
-  // Story modal state logic
-  const activeStoryAgency = agenciesList.find(a => a.id === activeStoryAgencyId);
-  const activeStoryIndex = agenciesList.findIndex(a => a.id === activeStoryAgencyId);
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return '';
+    const diffHours = Math.max(0, Math.floor((new Date() - new Date(dateString)) / (1000 * 60 * 60)));
+    if (diffHours === 0) return 'Just now';
+    if (diffHours < 24) return `${diffHours}H AGO`;
+    return `${Math.floor(diffHours / 24)}D AGO`;
+  };
 
-  const activeStoryImage = activeStoryAgencyId ? (activeStoryAgency?.storyImage || "/sahara-desert-maroc-marrocain-8.webp") : "";
+  // Story State
+  const topAgenciesSorted = useMemo(() => {
+    return (agencies || []).filter(u => u.role === 'agency').sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0));
+  }, [agencies]);
 
-  // Check if traveler is following the active story agency
-  const isFollowingActiveStory = user && user.followingAgencies?.includes(activeStoryAgencyId);
+  const displayAgencies = useMemo(() => {
+    // Always include the platform admins so their global stories appear
+    const admins = (agencies || []).filter(u => u.role === 'admin');
 
-  const handleStoryFollow = () => {
-    if (!user) {
-      showAlert("Authentication Required", "Please log in as a Traveler to follow agencies!", "info");
-      navigate('/login');
-      return;
+    let baseAgencies = [];
+    if (user && user.followingAgencies && user.followingAgencies.length > 0) {
+      baseAgencies = topAgenciesSorted.filter(a => user.followingAgencies.includes(a.id));
+      if (baseAgencies.length === 0) {
+        baseAgencies = topAgenciesSorted.slice(0, 10);
+      }
+    } else {
+      baseAgencies = topAgenciesSorted.slice(0, 10);
     }
-    if (user.role !== 'traveler') {
-      showAlert("Access Denied", "Only traveler accounts can follow agencies.", "error");
-      return;
+    
+    // Combine admins with organic feed agencies
+    return [...admins, ...baseAgencies];
+  }, [user, topAgenciesSorted, agencies]);
+
+  // 2. Filter out agencies that have NO stories and sort unviewed first
+  const [agenciesWithStories, setAgenciesWithStories] = useState([]);
+  const [activeStoryIdx, setActiveStoryIdx] = useState(null);
+  const [storyProgress, setStoryProgress] = useState(0);
+  const [isStoryPaused, setIsStoryPaused] = useState(false);
+
+  useEffect(() => {
+    if (activeStoryIdx !== null) return;
+    const viewed = JSON.parse(localStorage.getItem('viewedAgencies')) || [];
+    const filtered = displayAgencies.filter(a => a.stories && a.stories.length > 0);
+    const sorted = filtered.sort((a, b) => {
+       if (a.role === 'admin' && b.role !== 'admin') return -1;
+       if (b.role === 'admin' && a.role !== 'admin') return 1;
+       const aViewed = viewed.includes(a.id);
+       const bViewed = viewed.includes(b.id);
+       if (aViewed && !bViewed) return 1;
+       if (!aViewed && bViewed) return -1;
+       return 0;
+    });
+    setAgenciesWithStories(sorted);
+  }, [displayAgencies, activeStoryIdx]);
+
+  const markAgencyViewed = (agencyId) => {
+    const viewed = JSON.parse(localStorage.getItem('viewedAgencies')) || [];
+    if (!viewed.includes(agencyId)) {
+      const updated = [...viewed, agencyId];
+      localStorage.setItem('viewedAgencies', JSON.stringify(updated));
     }
-    toggleFollowAgency(activeStoryAgencyId);
   };
 
   const handleNextStory = () => {
-    if (activeStoryIndex < agenciesList.length - 1) {
-      setActiveStoryAgencyId(agenciesList[activeStoryIndex + 1].id);
-    } else {
-      setActiveStoryAgencyId(null); // Close at the end
-    }
+    setActiveStoryIdx(prev => {
+      if (!prev) return null;
+      const currentAgency = agenciesWithStories[prev.agencyIndex];
+      if (prev.storyIndex < currentAgency.stories.length - 1) {
+        setStoryProgress(0);
+        return { ...prev, storyIndex: prev.storyIndex + 1 };
+      } else if (prev.agencyIndex < agenciesWithStories.length - 1) {
+        setStoryProgress(0);
+        const nextAgency = agenciesWithStories[prev.agencyIndex + 1];
+        markAgencyViewed(nextAgency.id);
+        return { agencyIndex: prev.agencyIndex + 1, storyIndex: 0 };
+      }
+      return null;
+    });
   };
 
   const handlePrevStory = () => {
-    if (activeStoryIndex > 0) {
-      setActiveStoryAgencyId(agenciesList[activeStoryIndex - 1].id);
+    setActiveStoryIdx(prev => {
+      if (!prev) return null;
+      if (prev.storyIndex > 0) {
+        setStoryProgress(0);
+        return { ...prev, storyIndex: prev.storyIndex - 1 };
+      } else if (prev.agencyIndex > 0) {
+        setStoryProgress(0);
+        const prevAgency = agenciesWithStories[prev.agencyIndex - 1];
+        markAgencyViewed(prevAgency.id);
+        return { agencyIndex: prev.agencyIndex - 1, storyIndex: prevAgency.stories.length - 1 };
+      }
+      setStoryProgress(0);
+      return prev;
+    });
+  };
+
+  useEffect(() => {
+    let timer;
+    if (activeStoryIdx !== null && !isStoryPaused) {
+      timer = setInterval(() => {
+        setStoryProgress((prev) => {
+          if (prev >= 100) {
+            handleNextStory();
+            return 0;
+          }
+          return prev + 1;
+        });
+      }, 50);
     }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [activeStoryIdx, isStoryPaused, agenciesWithStories]);
+
+  const handleAddStory = async () => {
+    if (!user || (user.role !== 'agency' && user.role !== 'admin')) {
+      showAlert('Access Denied', 'Only agencies and admins can post stories.', 'error');
+      return;
+    }
+    const imageUrl = prompt('Enter the image URL for your new story:');
+    if (!imageUrl) return;
+    await shareStory(imageUrl);
+    showAlert('Success', 'Story posted successfully!', 'success');
   };
 
   // Trending sidebar topics
@@ -154,7 +259,10 @@ const Community = () => {
             <div className="absolute top-0 right-0 bottom-0 w-12 bg-gradient-to-l from-white to-transparent pointer-events-none z-10 rounded-r-[2rem]"></div>
             
             {/* Add Story Button (Self) */}
-            <div className="flex flex-col items-center gap-2 cursor-pointer min-w-[70px] group">
+            <div 
+              onClick={handleAddStory}
+              className="flex flex-col items-center gap-2 cursor-pointer min-w-[70px] group"
+            >
                <div className="w-16 h-16 rounded-[1.25rem] border-2 border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 group-hover:bg-blue-50 transition-all duration-300">
                  <FaCamera className="text-xl group-hover:scale-110 transition-transform" />
                </div>
@@ -162,14 +270,18 @@ const Community = () => {
             </div>
 
             {/* Dynamic Agency Stories */}
-            {agenciesList.map((agency) => (
+            {agenciesWithStories.map((agency, index) => (
               <div 
-                key={agency.id} 
-                onClick={() => setActiveStoryAgencyId(agency.id)}
+                key={`${agency.id}-${index}`} 
+                onClick={() => {
+                   markAgencyViewed(agenciesWithStories[index].id);
+                   setActiveStoryIdx({ agencyIndex: index, storyIndex: 0 });
+                   setStoryProgress(0);
+                }}
                 className="flex flex-col items-center gap-2 cursor-pointer min-w-[70px] group"
               >
-                <div className="w-16 h-16 rounded-[1.25rem] p-0.5 transition-transform duration-300 group-hover:scale-105 bg-gradient-to-tr from-amber-400 via-rose-500 to-fuchsia-600">
-                  <img src={agency.avatar} alt={agency.name} className="w-full h-full rounded-[1.15rem] border-2 border-white object-cover" />
+                <div className={`w-16 h-16 rounded-[1.25rem] p-0.5 transition-transform duration-300 group-hover:scale-105 ${(JSON.parse(localStorage.getItem('viewedAgencies')) || []).includes(agency.id) ? 'bg-slate-300 dark:bg-slate-700' : 'bg-gradient-to-tr from-amber-400 via-rose-500 to-fuchsia-600'}`}>
+                  <img  src={agency.avatar || '/MorP.jpg'} alt={agency.name} className="w-full h-full rounded-[1.15rem] border-2 border-white object-cover" />
                 </div>
                 <span className="text-xs font-bold text-slate-700 truncate w-16 text-center group-hover:text-slate-900">{agency.name}</span>
               </div>
@@ -180,14 +292,21 @@ const Community = () => {
           {posts.map((post) => {
             const hasLiked = user && post.likes.includes(user.id);
             return (
-              <div key={post.id} className="bg-white rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden mb-8">
+              <div key={post.id} id={`post-${post.id}`} className="bg-white rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden mb-8 scroll-mt-32">
                 
                 {/* Post Header */}
                 <div className="p-6 flex justify-between items-center">
                   <div className="flex items-center gap-4 cursor-pointer group">
                     <img src={post.avatar} alt={post.agencyName} className="w-12 h-12 rounded-[1rem] shadow-sm border border-slate-100 group-hover:scale-105 transition-transform" />
                     <div>
-                      <h4 className="font-extrabold text-slate-900 text-base group-hover:text-blue-600 transition-colors">{post.agencyName}</h4>
+                      <h4 className="font-extrabold text-slate-900 text-base group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                        {post.agencyName}
+                        {post.agencyRole === 'admin' && (
+                          <span className="bg-amber-500 text-slate-900 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <FaCheckCircle className="text-[10px]" /> Official Admin
+                          </span>
+                        )}
+                      </h4>
                       <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
                         {post.time} <span className="w-1 h-1 rounded-full bg-slate-300"></span> <FaMapMarkerAlt className="text-blue-400" /> {post.location}
                       </p>
@@ -260,10 +379,13 @@ const Community = () => {
                   
                   <p className="text-sm font-black text-slate-900 mb-3">{post.likes.length} likes</p>
                   
-                  <p className="text-[15px] text-slate-600 leading-relaxed mb-3">
-                    <span className="font-extrabold text-slate-900 mr-2 cursor-pointer hover:underline">{post.agencyName}</span>
-                    {post.content}
-                  </p>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[15px] text-slate-600 leading-relaxed">
+                      <span className="font-extrabold text-slate-900 mr-2 cursor-pointer hover:underline">{post.agencyName}</span>
+                      {post.content}
+                    </p>
+                    <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap ml-4">{formatTimeAgo(post.createdAt)}</span>
+                  </div>
 
                   {/* --- ATTACHED OFFER QUICK BOOK & CHAT BOX --- */}
                   {post.hasOffer && (
@@ -362,123 +484,17 @@ const Community = () => {
       </div>
 
       {/* --- IMMERSIVE STORY VIEWER MODAL --- */}
-      {activeStoryAgency && (
-        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-0 md:p-4 select-none">
-          {/* Story Container */}
-          <div className="relative max-w-lg w-full h-full md:h-[85vh] bg-slate-900 md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-800 flex flex-col justify-between">
-            
-            {/* Story Image Backdrop */}
-            <div className="absolute inset-0 z-0">
-              <img src={activeStoryImage} alt="Story Content" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/80"></div>
-            </div>
-
-            {/* Top Indicator / Progress Bars */}
-            <div className="relative z-10 p-4 space-y-3">
-              <div className="flex gap-1.5">
-                {agenciesList.map((a, idx) => (
-                  <div 
-                    key={a.id} 
-                    className={`h-1.5 rounded-full flex-1 transition-all duration-300 ${
-                      idx < activeStoryIndex ? 'bg-white' : 
-                      idx === activeStoryIndex ? 'bg-white shadow-[0_0_8px_white]' : 'bg-white/30'
-                    }`}
-                  ></div>
-                ))}
-              </div>
-
-              {/* Story Header: Profile Info, Follow Button, Close Button */}
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <img src={activeStoryAgency.avatar} alt={activeStoryAgency.name} className="w-10 h-10 rounded-full border-2 border-white object-cover" />
-                  <div>
-                    <h4 className="font-extrabold text-sm text-white drop-shadow">{activeStoryAgency.name}</h4>
-                    <span className="text-[10px] text-slate-300 font-medium tracking-wide uppercase">Local Expert</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {/* Follow / Following Button */}
-                  {user?.role === 'traveler' || !user ? (
-                    <button 
-                      onClick={handleStoryFollow}
-                      className={`px-4 py-1.5 rounded-full text-xs font-black transition-all flex items-center gap-1.5 active:scale-95 ${
-                        isFollowingActiveStory 
-                          ? 'bg-white/20 text-white border border-white/20' 
-                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20'
-                      }`}
-                    >
-                      {isFollowingActiveStory ? (
-                        <>
-                          <FaCheck className="text-[10px]" /> Following
-                        </>
-                      ) : (
-                        "+ Follow"
-                      )}
-                    </button>
-                  ) : null}
-
-                  {/* Close button */}
-                  <button 
-                    onClick={() => setActiveStoryAgencyId(null)}
-                    className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
-                  >
-                    <FaTimes />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Left / Right Navigation Click Zones */}
-            <div className="absolute inset-x-0 top-24 bottom-24 z-10 flex">
-              <div 
-                onClick={handlePrevStory}
-                className="w-1/3 h-full cursor-w-resize flex items-center justify-start pl-4 group"
-              >
-                {activeStoryIndex > 0 && (
-                  <button className="w-10 h-10 rounded-full bg-black/30 hover:bg-black/50 text-white items-center justify-center hidden group-hover:flex transition-all">
-                    <FaChevronLeft />
-                  </button>
-                )}
-              </div>
-              <div className="w-1/3 h-full"></div>
-              <div 
-                onClick={handleNextStory}
-                className="w-1/3 h-full cursor-e-resize flex items-center justify-end pr-4 group"
-              >
-                <button className="w-10 h-10 rounded-full bg-black/30 hover:bg-black/50 text-white items-center justify-center hidden group-hover:flex transition-all">
-                  <FaChevronRight />
-                </button>
-              </div>
-            </div>
-
-            {/* Bottom CTA Card */}
-            <div className="relative z-10 p-6 bg-gradient-to-t from-black/90 to-transparent pt-12 flex flex-col gap-4 text-center">
-              <p className="text-white font-bold text-base drop-shadow-md">
-                Experience {activeStoryAgency.location} with {activeStoryAgency.name}!
-              </p>
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => {
-                    setActiveStoryAgencyId(null);
-                    navigate(`/search?dest=${encodeURIComponent(activeStoryAgency.location)}`);
-                  }}
-                  className="flex-1 bg-white hover:bg-slate-100 text-slate-900 font-extrabold py-3 rounded-2xl text-xs transition-all shadow-lg active:scale-95"
-                >
-                  Browse Offers
-                </button>
-                <button 
-                  onClick={() => setActiveStoryAgencyId(null)}
-                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-2xl text-xs transition-all border border-white/15"
-                >
-                  Close Story
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
+      <StoryViewer 
+        agenciesWithStories={agenciesWithStories}
+        activeStoryIdx={activeStoryIdx}
+        setActiveStoryIdx={setActiveStoryIdx}
+        storyProgress={storyProgress}
+        setStoryProgress={setStoryProgress}
+        isStoryPaused={isStoryPaused}
+        setIsStoryPaused={setIsStoryPaused}
+        handleNextStory={handleNextStory}
+        handlePrevStory={handlePrevStory}
+      />
 
       
       {/* Edit Post Modal */}

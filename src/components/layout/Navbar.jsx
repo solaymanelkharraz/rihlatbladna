@@ -37,11 +37,13 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-20">
           
           {/* Logo with Gradient Text & Spin Icon on Hover */}
-          <Link to="/" className="flex items-center gap-2.5 text-2xl font-black tracking-tight text-white group shrink-0">
-            <div className="p-2 bg-gradient-to-tr from-blue-600 to-amber-500 rounded-2xl shadow-md shadow-blue-500/10 group-hover:rotate-45 transition-transform duration-500">
-              <FaGlobeAfrica className="text-white text-2xl" />
-            </div>
-            <span className="font-extrabold bg-gradient-to-r from-blue-400 via-indigo-400 to-amber-400 bg-clip-text text-transparent">
+          <Link to="/" className="flex items-center gap-3 text-2xl font-black tracking-tight text-white group shrink-0">
+            <img 
+              src="/main_logo.png" 
+              alt="RihlatBladna Logo" 
+              className="h-11 w-auto max-w-[140px] object-contain group-hover:scale-105 transition-transform duration-500" 
+            />
+            <span className="font-extrabold bg-gradient-to-r from-blue-400 via-indigo-400 to-amber-400 bg-clip-text text-transparent hidden sm:inline">
               Rihlat<span className="text-white">Bladna</span>
             </span>
           </Link>

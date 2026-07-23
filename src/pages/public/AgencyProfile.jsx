@@ -19,7 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 const AgencyProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, toggleFollowAgency, addInquiry, showAlert, agencies, tours, posts, toggleLikePost } = useAuth();
+  const { user, toggleFollowAgency, addInquiry, showAlert, agencies, tours, posts, toggleLikePost, loading } = useAuth();
   
   const agency = (agencies || []).find((a) => String(a.id) === String(id));
   
@@ -33,6 +33,18 @@ const AgencyProfile = () => {
     primaryText: '',
     primaryLink: ''
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!agency) {
     return (
@@ -54,7 +66,7 @@ const AgencyProfile = () => {
   const agencyOffers = (tours || []).filter(offer => String(offer.agencyId) === String(agency.id));
   const agencyPosts = (posts || []).filter(post => String(post.agencyId) === String(agency.id));
 
-  const isFollowing = user && user.role === 'traveler' && user.followingAgencies?.includes(agency.id);
+  const isFollowing = user && user.followingAgencies?.includes(agency.id);
 
   const handleSaveTrip = (tripId) => {
     setWishlist((prev) => ({
@@ -81,10 +93,6 @@ const AgencyProfile = () => {
         primaryText: 'Log In',
         primaryLink: '/login'
       });
-      return;
-    }
-    if (user.role !== 'traveler') {
-      showAlert("Access Denied", "Only traveler accounts can follow agencies.", "error");
       return;
     }
     toggleFollowAgency(agency.id);
@@ -148,7 +156,7 @@ const AgencyProfile = () => {
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs md:text-sm font-bold text-slate-400">
                   <span className="flex items-center gap-1"><FaMapMarkerAlt className="text-blue-500 text-xs" /> {agency.location}, Morocco</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-200"></span>
-                  <span>{agency.followers} followers</span>
+                  <span>{agency.followersCount || 0} followers</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-200"></span>
                   <span className="flex items-center gap-1 text-amber-500"><FaStar className="text-xs mb-0.5" /> {agency.rating}</span>
                 </div>

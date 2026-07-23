@@ -1,20 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../../components/layout/Sidebar';
 import { useAuth } from '../../context/AuthContext';
+import { toursAPI } from '../../api/endpoints';
 import { FaTrash, FaPlus, FaMapMarkerAlt, FaSearch, FaToggleOn, FaToggleOff, FaEye, FaRocket } from 'react-icons/fa';
 
 const MyOffers = () => {
-  const { user, tours, deleteTour, updateTourStatus, toggleBoostTour } = useAuth();
+  const { user, deleteTour, updateTourStatus, toggleBoostTour } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [boostModalTourId, setBoostModalTourId] = useState(null);
+  const [isBoosting, setIsBoosting] = useState(false);
+  const [myTours, setMyTours] = useState([]);
 
-  const myTours = (tours || []).filter(t => t.agencyId === user?.id);
+  const fetchMyTours = async () => {
+    if (!user?.id) return;
+    try {
+      const data = await toursAPI.getAll({ agencyId: user.id });
+      setMyTours(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMyTours();
+  }, [user]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this offer? This cannot be undone.")) return;
 
     await deleteTour(id);
+    fetchMyTours();
   };
 
   const handleToggleStatus = async (id) => {
@@ -22,6 +39,7 @@ const MyOffers = () => {
     if (!offer) return;
     const newStatus = offer.status === 'Active' ? 'Archived' : 'Active';
     await updateTourStatus(id, { status: newStatus });
+    fetchMyTours();
   };
 
   // Filter listings
@@ -119,35 +137,40 @@ const MyOffers = () => {
                     <FaMapMarkerAlt className="text-blue-400" /> {offer.location}
                   </p>
 
-                  <div className="mt-auto flex items-center justify-between pt-5 border-t border-slate-100">
-                    <div className="text-sm font-bold text-slate-400 flex items-center gap-1.5">
-                      <FaEye className="text-slate-300 text-lg" /> <span className="text-slate-700">{offer.views || 0}</span> views
+                  <div className="mt-auto pt-5 border-t border-slate-100 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-bold text-slate-400 flex items-center gap-1.5">
+                        <FaEye className="text-slate-300 text-lg" /> <span className="text-slate-700">{offer.views || 0}</span> views
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handleToggleStatus(offer.id)}
+                          className={`px-3 h-9 flex items-center justify-center gap-1.5 rounded-lg font-bold text-xs transition-colors duration-300 border ${offer.status === 'Active' ? 'bg-green-50 text-green-600 border-green-200 hover:bg-green-500 hover:text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-500 hover:text-white border-slate-200'}`}
+                        >
+                          {offer.status === 'Active' ? <><FaToggleOn className="text-lg" /> Active</> : <><FaToggleOff className="text-lg" /> Draft</>}
+                        </button>
+                        
+                        <button 
+                          onClick={() => handleDelete(offer.id)}
+                          className="w-9 h-9 flex items-center justify-center bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-lg transition-colors duration-300 border border-red-100" 
+                          title="Delete Offer"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={() => toggleBoostTour(offer.id)}
-                        className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors duration-300 border ${offer.isBoosted ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500 shadow-md shadow-amber-500/20' : 'bg-slate-50 hover:bg-amber-500 text-slate-500 hover:text-white border-slate-200'}`}
-                        title={offer.isBoosted ? "Unboost (Remove Sponsored status)" : "Boost Offer (Make Sponsored 🚀)"}
-                      >
-                        <FaRocket />
-                      </button>
 
-                      <button 
-                        onClick={() => handleToggleStatus(offer.id)}
-                        className={`w-10 h-10 flex items-center justify-center rounded-xl transition-colors duration-300 border ${offer.status === 'Active' ? 'bg-green-50 hover:bg-green-500 text-green-600 hover:text-white border-green-200' : 'bg-slate-50 hover:bg-slate-500 text-slate-500 hover:text-white'}`}
-                        title={offer.status === 'Active' ? "Set to Draft" : "Publish Active"}
-                      >
-                        {offer.status === 'Active' ? <FaToggleOn className="text-xl" /> : <FaToggleOff className="text-xl" />}
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleDelete(offer.id)}
-                        className="w-10 h-10 flex items-center justify-center bg-red-50 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-colors duration-300 border border-red-100" 
-                        title="Delete Offer"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => {
+                        if (offer.isBoosted) return;
+                        setBoostModalTourId(offer.id);
+                      }}
+                      disabled={offer.isBoosted}
+                      className={`w-full py-2.5 flex items-center justify-center gap-2 rounded-xl font-bold text-sm transition-colors duration-300 border ${offer.isBoosted ? 'bg-amber-100 text-amber-600 border-amber-200 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white shadow-md shadow-amber-500/30'}`}
+                      title={offer.isBoosted ? "Already Sponsored 🚀" : "Boost Offer (50 Credits)"}
+                    >
+                      <FaRocket /> {offer.isBoosted ? 'Sponsored' : 'Boost (50 cr)'}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -164,6 +187,51 @@ const MyOffers = () => {
         )}
 
       </div>
+
+      {/* Boost Confirmation Modal */}
+      {boostModalTourId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setBoostModalTourId(null)} />
+          <div className="relative bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
+            <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-6 shadow-inner">
+              <FaRocket />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-2">Boost Tour</h3>
+            <p className="text-slate-500 mb-6 font-medium leading-relaxed">
+              This will deduct <strong className="text-slate-800 text-lg">50 credits</strong> from your wallet to sponsor this tour for 7 days.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setBoostModalTourId(null)}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  setIsBoosting(true);
+                  await toggleBoostTour(boostModalTourId);
+                  setIsBoosting(false);
+                  setBoostModalTourId(null);
+                  fetchMyTours();
+                }}
+                disabled={isBoosting}
+                className="flex-1 py-3 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/30 transition-all disabled:opacity-50 cursor-pointer flex justify-center items-center gap-2"
+              >
+                {isBoosting ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing
+                  </>
+                ) : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

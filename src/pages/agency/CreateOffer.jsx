@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/layout/Sidebar';
 import { useAuth } from '../../context/AuthContext';
-import { FaCloudUploadAlt, FaMoneyBillWave, FaMapMarkerAlt, FaCalendarAlt, FaHeading, FaAlignLeft, FaTags, FaClipboardList } from 'react-icons/fa';
+import { FaCloudUploadAlt, FaMoneyBillWave, FaMapMarkerAlt, FaCalendarAlt, FaHeading, FaAlignLeft, FaTags, FaClipboardList, FaSpinner, FaPaperPlane } from 'react-icons/fa';
 
 const CreateOffer = () => {
   const navigate = useNavigate();
@@ -10,6 +10,7 @@ const CreateOffer = () => {
   
   // Local state for all fields
   const [title, setTitle] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
   const [price, setPrice] = useState('');
   const [city, setCity] = useState('');
   const [duration, setDuration] = useState('');
@@ -36,6 +37,8 @@ const CreateOffer = () => {
     e.preventDefault();
     if (!user) return;
 
+    setIsPublishing(true);
+
     // Create the new tour object
     const tourData = {
       title: title.trim(),
@@ -54,6 +57,7 @@ const CreateOffer = () => {
       showAlert("Success", "Offer Published Successfully! 🚀", "success");
       navigate('/agency/offers'); 
     }
+    setIsPublishing(false);
   };
 
   return (
@@ -266,19 +270,14 @@ const CreateOffer = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-8 border-t border-slate-100">
-                <button 
-                  type="button" 
-                  onClick={() => navigate('/agency/offers')}
-                  className="px-8 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all"
+              <div className="flex justify-end pt-4 border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={isPublishing}
+                  className={`font-bold py-4 px-10 rounded-2xl shadow-xl shadow-blue-600/20 active:scale-95 transition-all text-sm flex items-center gap-2 border-none cursor-pointer ${isPublishing ? 'bg-slate-400 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
                 >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-2xl font-bold shadow-md transform hover:-translate-y-0.5 active:scale-95 transition-all"
-                >
-                  Publish Offer
+                  {isPublishing ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
+                  {isPublishing ? 'Publishing...' : 'Publish Offer Live'}
                 </button>
               </div>
 

@@ -1,10 +1,29 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI, toursAPI, agenciesAPI, postsAPI, bookingsAPI, chatsAPI, adminAPI, uploadAPI } from '../api/endpoints';
+import { authAPI, toursAPI, agenciesAPI, postsAPI, bookingsAPI, chatsAPI, adminAPI, uploadAPI, walletAPI } from '../api/endpoints';
 
 const AuthContext = createContext();
 
+const sanitizeUser = (u) => {
+  if (!u) return u;
+  const clean = { ...u };
+  if (clean.avatar && clean.avatar.startsWith('data:image') && (clean.avatar.length <= 500 || !clean.avatar.includes('base64,'))) {
+    clean.avatar = '/MorP.jpg';
+  }
+  if (clean.cover && clean.cover.startsWith('data:image') && (clean.cover.length <= 500 || !clean.cover.includes('base64,'))) {
+    clean.cover = '/morocco1.jpg';
+  }
+  return clean;
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('rb_current_user'));
+      return sanitizeUser(saved) || null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   // Global Data States
@@ -49,7 +68,8 @@ export const AuthProvider = ({ children }) => {
   const fetchPosts = async () => {
     try {
       const data = await postsAPI.getAll();
-      setPosts(data);
+      // Shuffle posts so they are random on every refresh
+      setPosts([...data].sort(() => 0.5 - Math.random()));
     } catch (err) {
       console.error('Error fetching posts:', err);
     }
@@ -97,12 +117,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       const token = localStorage.getItem('rb_token');
       
+      // Fetch public data in parallel immediately to eliminate loading delays
+      const publicDataPromise = Promise.all([fetchTours(), fetchPosts(), fetchAgencies()]);
+
       if (token) {
         try {
           const res = await authAPI.getMe();
           if (res.success) {
-            setUser(res.user);
-            localStorage.setItem('rb_current_user', JSON.stringify(res.user));
+            const cleanU = sanitizeUser(res.user);
+            setUser(cleanU);
+            localStorage.setItem('rb_current_user', JSON.stringify(cleanU));
             // Fetch authenticated user's private data
             const fetches = [fetchBookings(), fetchChats()];
             if (res.user.role === 'admin') {
@@ -118,8 +142,7 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      // Fetch public data
-      await Promise.all([fetchTours(), fetchPosts(), fetchAgencies()]);
+      await publicDataPromise;
       setLoading(false);
     };
 
@@ -131,9 +154,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authAPI.login(email, password);
       if (res.success) {
+        const cleanU = sanitizeUser(res.user);
         localStorage.setItem('rb_token', res.token);
-        localStorage.setItem('rb_current_user', JSON.stringify(res.user));
-        setUser(res.user);
+        localStorage.setItem('rb_current_user', JSON.stringify(cleanU));
+        setUser(cleanU);
         
         // Load user's private data
         const fetches = [fetchBookings(), fetchChats()];
@@ -149,13 +173,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password, role) => {
+  const register = async (name, email, password, role, tourismLicenseNumber = null, licenseDocumentUrl = null) => {
     try {
-      const res = await authAPI.register(name, email, password, role);
+      const res = await authAPI.register(name, email, password, role, tourismLicenseNumber, licenseDocumentUrl);
       if (res.success) {
+        const cleanU = sanitizeUser(res.user);
         localStorage.setItem('rb_token', res.token);
-        localStorage.setItem('rb_current_user', JSON.stringify(res.user));
-        setUser(res.user);
+        localStorage.setItem('rb_current_user', JSON.stringify(cleanU));
+        setUser(cleanU);
         
         // Load user's private data
         const fetches = [fetchBookings(), fetchChats()];
@@ -163,7 +188,7 @@ export const AuthProvider = ({ children }) => {
           fetches.push(fetchAdminUsers());
         }
         await Promise.all(fetches);
-        return { success: true, user: res.user };
+        return { success: true, user: cleanU };
       }
     } catch (err) {
       const errMsg = err.response?.data?.message || 'Registration failed';
@@ -209,9 +234,10 @@ export const AuthProvider = ({ children }) => {
 
       const res = await authAPI.updateProfile(payload);
       if (res.success) {
-        setUser(res.user);
-        localStorage.setItem('rb_current_user', JSON.stringify(res.user));
-        await fetchAgencies(); // Reload agency lists in case user was an agency
+        const cleanU = sanitizeUser(res.user);
+        setUser(cleanU);
+        localStorage.setItem('rb_current_user', JSON.stringify(cleanU));
+        fetchAgencies().catch(console.error); // Background reload without blocking UI
         return { success: true };
       }
     } catch (err) {
@@ -236,34 +262,75 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const verifyAgency = async (agencyId) => {
+    try {
+      const res = await adminAPI.verifyAgency(agencyId);
+      if (res.success) {
+        await fetchAdminUsers();
+        await fetchAgencies();
+        return { success: true };
+      }
+    } catch (err) {
+      console.error('Error verifying agency:', err);
+      showAlert('Verification Error', err.response?.data?.message || 'Failed to verify agency.', 'error');
+      return { success: false };
+    }
+  };
+
   // Traveler Interactions
   const toggleFollowAgency = async (agencyId) => {
-    if (!user || user.role !== 'traveler') return;
+    if (!user) return;
+
+    // 1. Optimistic instant UI update (0ms latency!)
+    const isFollowing = user.followingAgencies?.includes(agencyId);
+    const newFollowing = isFollowing
+      ? (user.followingAgencies || []).filter(id => id !== agencyId)
+      : [...(user.followingAgencies || []), agencyId];
+
+    const updatedUser = { ...user, followingAgencies: newFollowing };
+    setUser(updatedUser);
+    localStorage.setItem('rb_current_user', JSON.stringify(updatedUser));
+
+    // Also optimistically update agency follower count right on screen
+    setAgencies(prev => prev.map(a => {
+      if (a.id !== agencyId) return a;
+      const count = a.followersCount || 0;
+      return { ...a, followersCount: isFollowing ? Math.max(0, count - 1) : count + 1 };
+    }));
 
     try {
       const res = await agenciesAPI.toggleFollow(agencyId);
       if (res.success) {
-        // Update user state followings
-        const updatedUser = { ...user, followingAgencies: res.followingAgencies };
-        setUser(updatedUser);
-        localStorage.setItem('rb_current_user', JSON.stringify(updatedUser));
-        await fetchAgencies(); // Reload rankings/followers
+        const finalUser = { ...user, followingAgencies: res.followingAgencies };
+        setUser(finalUser);
+        localStorage.setItem('rb_current_user', JSON.stringify(finalUser));
+        fetchAgencies().catch(console.error); // Sync in background
       }
     } catch (err) {
       console.error('Error toggling agency follow:', err);
+      fetchAgencies().catch(console.error);
     }
   };
 
   const toggleSaveTour = async (tourId) => {
     if (!user || user.role !== 'traveler') return;
 
+    // 1. Optimistic instant UI update (0ms latency!)
+    const isSaved = user.savedTours?.includes(tourId);
+    const newSaved = isSaved
+      ? (user.savedTours || []).filter(id => id !== tourId)
+      : [...(user.savedTours || []), tourId];
+
+    const updatedUser = { ...user, savedTours: newSaved };
+    setUser(updatedUser);
+    localStorage.setItem('rb_current_user', JSON.stringify(updatedUser));
+
     try {
       const res = await toursAPI.toggleWishlist(tourId);
       if (res.success) {
-        // Update user state wishlist
-        const updatedUser = { ...user, savedTours: res.savedTours };
-        setUser(updatedUser);
-        localStorage.setItem('rb_current_user', JSON.stringify(updatedUser));
+        const finalUser = { ...user, savedTours: res.savedTours };
+        setUser(finalUser);
+        localStorage.setItem('rb_current_user', JSON.stringify(finalUser));
       }
     } catch (err) {
       console.error('Error toggling wishlist:', err);
@@ -366,12 +433,36 @@ export const AuthProvider = ({ children }) => {
       const res = await toursAPI.toggleBoost(tourId);
       if (res.success) {
         await fetchTours();
-        showAlert("Success", res.message || "Tour boost updated! 🚀", "success");
+        // If boost is activated and user is agency, deduct 50 credits locally
+        if (user && user.role === 'agency' && user.credits !== undefined) {
+          const updatedUser = { ...user, credits: Math.max(0, user.credits - 50) };
+          setUser(updatedUser);
+          localStorage.setItem('rb_current_user', JSON.stringify(updatedUser));
+        }
+        showAlert("Success", res.message || "Tour boosted successfully! 🚀", "success");
         return { success: true };
       }
     } catch (err) {
       console.error('Error toggling tour boost:', err);
       showAlert("Error", err.response?.data?.message || "Failed to update tour boost.", "error");
+      return { success: false };
+    }
+  };
+
+  const topUpWallet = async (amount) => {
+    try {
+      const res = await walletAPI.topUp(amount);
+      if (res.success) {
+        if (user) {
+          const updatedUser = { ...user, credits: res.credits };
+          setUser(updatedUser);
+          localStorage.setItem('rb_current_user', JSON.stringify(updatedUser));
+        }
+        return { success: true, credits: res.credits };
+      }
+    } catch (err) {
+      console.error('Error topping up wallet:', err);
+      showAlert("Error", err.response?.data?.message || "Failed to top up wallet.", "error");
       return { success: false };
     }
   };
@@ -430,10 +521,23 @@ export const AuthProvider = ({ children }) => {
   };
 
   const toggleLikePost = async (postId) => {
+    if (!user) return;
+
+    // 1. Optimistic instant UI update (0ms latency!)
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      const likesArr = Array.isArray(p.likes) ? p.likes : [];
+      const alreadyLiked = likesArr.includes(user.id);
+      const newLikes = alreadyLiked
+        ? likesArr.filter(id => id !== user.id)
+        : [...likesArr, user.id];
+      return { ...p, likes: newLikes };
+    }));
+
     try {
       const res = await postsAPI.toggleLike(postId);
       if (res.success) {
-        // Update likes in local posts state
+        // Sync exact server likes array in background
         setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: res.likes } : p));
       }
     } catch (err) {
@@ -560,8 +664,10 @@ export const AuthProvider = ({ children }) => {
       deleteStory,
       viewStory,
       adminDeleteUser,
+      verifyAgency,
       uploadImage,
       showAlert,
+      topUpWallet,
       refreshData: {
         tours: fetchTours,
         posts: fetchPosts,

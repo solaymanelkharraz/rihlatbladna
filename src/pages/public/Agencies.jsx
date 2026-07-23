@@ -28,6 +28,7 @@ const Agencies = () => {
 
   // Filter based on search input and sort by followers
   const agencies = (rawAgencies || [])
+    .filter(a => a.role !== 'admin')
     .filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => b.followersCount - a.followersCount);
 

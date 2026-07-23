@@ -12,14 +12,15 @@ import {
   FaTimes,
   FaIdCard,
   FaBullhorn,
-  FaCamera
+  FaCamera,
+  FaWallet
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout, showAlert } = useAuth();
   
   const [isOpen, setIsOpen] = useState(false);
   
@@ -30,12 +31,22 @@ const Sidebar = () => {
     navigate('/');
   };
 
+  const handleRestrictedNav = (e) => {
+    if (user?.role === 'agency' && !user?.isVerified) {
+      e.preventDefault();
+      setIsOpen(false);
+      showAlert("Account Restricted", "You can't use this yet until you get verified by our admin team.", "warning");
+    } else {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <>
       {/* Mobile Topbar Navigation */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 z-30">
-        <Link to="/" className="flex items-center gap-2 text-lg font-bold text-white">
-          <FaGlobeAfrica className="text-amber-500 animate-pulse" />
+        <Link to="/" className="flex items-center gap-2.5 text-lg font-bold text-white">
+          <img src="/main_logo.png" alt="RihlatBladna Logo" className="h-8 w-auto object-contain" />
           <span>Rihlat<span className="text-blue-500">Agency</span></span>
         </Link>
         <button 
@@ -60,8 +71,8 @@ const Sidebar = () => {
         
         {/* Desktop Logo Area */}
         <div className="h-20 flex items-center px-8 border-b border-slate-800 hidden lg:flex shrink-0">
-          <Link to="/" className="flex items-center gap-2 text-xl font-bold">
-            <FaGlobeAfrica className="text-amber-500" />
+          <Link to="/" className="flex items-center gap-2.5 text-xl font-bold">
+            <img src="/main_logo.png" alt="RihlatBladna Logo" className="h-9 w-auto object-contain" />
             <span>Rihlat<span className="text-blue-500">Agency</span></span>
           </Link>
         </div>
@@ -85,6 +96,19 @@ const Sidebar = () => {
           </Link>
 
           <Link 
+            to="/agency/wallet" 
+            onClick={handleRestrictedNav}
+            className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${isActive('/agency/wallet') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <FaWallet className="text-base" /> Wallet
+            {user?.credits !== undefined && (
+              <span className="ml-auto bg-blue-500/20 text-blue-400 py-0.5 px-2 rounded-full text-xs font-bold">
+                {user.credits} cr
+              </span>
+            )}
+          </Link>
+
+          <Link 
             to="/agency/profile" 
             onClick={() => setIsOpen(false)}
             className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${isActive('/agency/profile') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
@@ -94,7 +118,7 @@ const Sidebar = () => {
 
           <Link 
             to="/agency/offers" 
-            onClick={() => setIsOpen(false)}
+            onClick={handleRestrictedNav}
             className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${isActive('/agency/offers') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
             <FaSuitcase className="text-base" /> Offers
@@ -102,7 +126,7 @@ const Sidebar = () => {
 
           <Link 
             to="/agency/bookings" 
-            onClick={() => setIsOpen(false)}
+            onClick={handleRestrictedNav}
             className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${isActive('/agency/bookings') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
             <FaCalendarCheck className="text-base" /> Bookings
@@ -110,7 +134,7 @@ const Sidebar = () => {
 
           <Link 
             to="/agency/posts" 
-            onClick={() => setIsOpen(false)}
+            onClick={handleRestrictedNav}
             className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${isActive('/agency/posts') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
             <FaBullhorn className="text-base" /> Posts
@@ -118,7 +142,7 @@ const Sidebar = () => {
 
           <Link 
             to="/agency/story" 
-            onClick={() => setIsOpen(false)}
+            onClick={handleRestrictedNav}
             className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${isActive('/agency/story') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
             <FaCamera className="text-base" /> Stories & Posts
@@ -126,7 +150,7 @@ const Sidebar = () => {
 
           <Link 
             to="/agency/messages" 
-            onClick={() => setIsOpen(false)}
+            onClick={handleRestrictedNav}
             className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all text-sm font-semibold ${isActive('/agency/messages') ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
             <FaComments className="text-base" /> Messages

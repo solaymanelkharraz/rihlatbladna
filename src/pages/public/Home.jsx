@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   FaSearch, 
@@ -29,16 +29,16 @@ const BACKGROUND_IMAGES = [
 const Home = () => {
   const navigate = useNavigate();
   const [currentBgIndex, setCurrentBgIndex] = useState(0);
-  const { user, tours, agencies, toggleSaveTour, toggleFollowAgency, showAlert } = useAuth();
+  const { user, tours, agencies, posts, toggleSaveTour, toggleFollowAgency, showAlert } = useAuth();
 
   const trips = (tours || [])
     .slice()
     .sort((a, b) => (b.isBoosted ? 1 : 0) - (a.isBoosted ? 1 : 0))
     .slice(0, 4);
-  const baseAgencies = (agencies || []).filter(u => u.role === 'agency');
-  const topAgenciesSorted = baseAgencies
-    .slice()
-    .sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0));
+  const topAgenciesSorted = useMemo(() => {
+    const baseAgencies = (agencies || []).filter(u => u.role === 'agency');
+    return baseAgencies.slice().sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0));
+  }, [agencies]);
 
   const agenciesList = topAgenciesSorted.slice(0, 6);
   const toursList = tours || [];
@@ -57,41 +57,108 @@ const Home = () => {
     primaryLink: ''
   });
 
-  const [activeStory, setActiveStory] = useState(null);
+  // Story State: { agencyIndex: number, storyIndex: number } | null
+  const [activeStoryIdx, setActiveStoryIdx] = useState(null);
   const [storyProgress, setStoryProgress] = useState(0);
+  const [isStoryPaused, setIsStoryPaused] = useState(false);
+
+
+
+  const { displayAgencies, showFallbackLabel } = useMemo(() => {
+    let result = [];
+    let fallback = false;
+    if (user && user.followingAgencies && user.followingAgencies.length > 0) {
+      const followed = topAgenciesSorted.filter(a => user.followingAgencies.includes(a.id));
+      if (followed.length > 0) {
+        result = followed;
+      } else {
+        result = topAgenciesSorted.slice(0, 10);
+        fallback = true;
+      }
+    } else {
+      result = topAgenciesSorted.slice(0, 10);
+      fallback = true;
+    }
+    return { displayAgencies: result, showFallbackLabel: fallback };
+  }, [user, topAgenciesSorted]);
+
+  // 2. Filter out agencies that have NO stories and sort unviewed first
+  const [agenciesWithStories, setAgenciesWithStories] = useState([]);
 
   useEffect(() => {
-    let timer;
-    if (activeStory) {
+    if (activeStoryIdx !== null) return;
+    const viewed = JSON.parse(localStorage.getItem('viewedAgencies')) || [];
+    const filtered = displayAgencies.filter(a => a.stories && a.stories.length > 0);
+    const sorted = filtered.sort((a, b) => {
+       const aViewed = viewed.includes(a.id);
+       const bViewed = viewed.includes(b.id);
+       if (aViewed && !bViewed) return 1;
+       if (!aViewed && bViewed) return -1;
+       return 0;
+    });
+    setAgenciesWithStories(sorted);
+  }, [displayAgencies, activeStoryIdx]);
+
+  const markAgencyViewed = (agencyId) => {
+    const viewed = JSON.parse(localStorage.getItem('viewedAgencies')) || [];
+    if (!viewed.includes(agencyId)) {
+      const updated = [...viewed, agencyId];
+      localStorage.setItem('viewedAgencies', JSON.stringify(updated));
+    }
+  };
+
+  const handleNextStory = () => {
+    setActiveStoryIdx(prev => {
+      if (!prev) return null;
+      const currentAgency = agenciesWithStories[prev.agencyIndex];
+      if (prev.storyIndex < currentAgency.stories.length - 1) {
+        setStoryProgress(0);
+        return { ...prev, storyIndex: prev.storyIndex + 1 };
+      } else if (prev.agencyIndex < agenciesWithStories.length - 1) {
+        setStoryProgress(0);
+        const nextAgency = agenciesWithStories[prev.agencyIndex + 1];
+        markAgencyViewed(nextAgency.id);
+        return { agencyIndex: prev.agencyIndex + 1, storyIndex: 0 };
+      }
+      return null;
+    });
+  };
+
+  const handlePrevStory = () => {
+    setActiveStoryIdx(prev => {
+      if (!prev) return null;
+      if (prev.storyIndex > 0) {
+        setStoryProgress(0);
+        return { ...prev, storyIndex: prev.storyIndex - 1 };
+      } else if (prev.agencyIndex > 0) {
+        setStoryProgress(0);
+        const prevAgency = agenciesWithStories[prev.agencyIndex - 1];
+        markAgencyViewed(prevAgency.id);
+        return { agencyIndex: prev.agencyIndex - 1, storyIndex: prevAgency.stories.length - 1 };
+      }
       setStoryProgress(0);
+      return prev;
+    });
+  };
+
+  // 3. Effect for story timer
+  useEffect(() => {
+    let timer;
+    if (activeStoryIdx !== null && !isStoryPaused) {
       timer = setInterval(() => {
         setStoryProgress((prev) => {
           if (prev >= 100) {
-            clearInterval(timer);
-            setActiveStory(null);
+            handleNextStory();
             return 0;
           }
-          return prev + 2;
+          return prev + 1;
         });
-      }, 100);
+      }, 50); // 100 steps * 50ms = 5 seconds
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [activeStory]);
-
-  // Top 10 agencies for live stories marquee
-  const top10Agencies = topAgenciesSorted.slice(0, 10);
-
-  const allStories = top10Agencies.map(a => ({
-    id: a.id,
-    name: a.name,
-    avatar: a.avatar || a.avatar_url || "/MorP.jpg",
-    story_image_url: a.storyImage || a.story_image_url || "/Sahara Desert Adventure.jpg",
-    location: a.location || 'Morocco',
-    bio: a.bio || "Specialized in customized Moroccan adventures.",
-    isReal: true
-  }));
+  }, [activeStoryIdx, isStoryPaused, agenciesWithStories]);
 
   // Background carousel ticker
   useEffect(() => {
@@ -261,7 +328,7 @@ const Home = () => {
         `}</style>
         
         <div className="max-w-7xl mx-auto px-6 mb-4 flex justify-between items-center">
-          <h4 className="text-xs font-black uppercase tracking-widest text-amber-400">Active Travel Experts Live Stories</h4>
+          <h4 className="text-xs font-black uppercase tracking-widest text-amber-400">{showFallbackLabel ? 'Suggested For You' : 'Agencies You Follow'}</h4>
           <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider hidden sm:inline-block">Hover to pause • Click avatar to view story</span>
         </div>
 
@@ -273,22 +340,27 @@ const Home = () => {
 
           <div className="animate-marquee-scroll flex gap-8">
             {/* Render stories array twice for seamless looping */}
-            {[...allStories, ...allStories].map((story, index) => (
+            {[...agenciesWithStories, ...agenciesWithStories].map((agency, index) => (
               <div 
-                key={`${story.id}-${index}`} 
-                onClick={() => setActiveStory(story)}
+                key={`${agency.id}-${index}`} 
+                onClick={() => {
+                   const realIndex = index % agenciesWithStories.length;
+                   markAgencyViewed(agenciesWithStories[realIndex].id);
+                   setActiveStoryIdx({ agencyIndex: realIndex, storyIndex: 0 });
+                   setStoryProgress(0);
+                }}
                 className="flex flex-col items-center gap-2 cursor-pointer shrink-0 group transition-transform duration-300 hover:scale-105"
               >
-                <div className="relative w-18 h-18 rounded-full bg-gradient-to-tr from-amber-500 to-blue-600 p-[2px] shadow-lg group-hover:shadow-amber-500/20">
+                <div className={`relative w-18 h-18 rounded-full p-[2px] shadow-lg ${(JSON.parse(localStorage.getItem('viewedAgencies')) || []).includes(agency.id) ? 'bg-slate-300 dark:bg-slate-700' : 'bg-gradient-to-tr from-amber-500 to-blue-600 group-hover:shadow-amber-500/20'}`}>
                   <img 
-                    src={story.avatar} 
-                    alt={story.name} 
+                    src={agency.avatar || '/MorP.jpg'} 
+                    alt={agency.name} 
                     className="w-full h-full rounded-full object-cover border-2 border-slate-900 bg-slate-900" 
                   />
                   <span className="absolute bottom-0.5 right-0.5 w-4.5 h-4.5 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-[8px] font-black text-white">LIVE</span>
                 </div>
                 <span className="text-[11px] font-extrabold text-slate-400 tracking-wide max-w-[90px] truncate text-center group-hover:text-amber-300 transition-colors">
-                  {story.name}
+                  {agency.name}
                 </span>
               </div>
             ))}
@@ -693,30 +765,34 @@ const Home = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { img: "/sahara-desert-maroc-marrocain-8.webp", likes: 142, tag: "Sahara Dunes" },
-              { img: "/morocco1.jpg", likes: 98, tag: "Chefchaouen Walk" },
-              { img: "/Marrakesh.jpg", likes: 119, tag: "Marrakesh Souks" },
-              { img: "/Fes.jpg", likes: 84, tag: "Imperial Fes Medersa" }
-            ].map((feed, idx) => (
+            {((posts && posts.length > 0) ? posts.slice(0, 4) : [
+              { id: '1', image: "/sahara-desert-maroc-marrocain-8.webp", likes: [], location: "Sahara Dunes", agencyName: "Atlas Nomads Travel" },
+              { id: '2', image: "/morocco1.jpg", likes: [], location: "Chefchaouen Walk", agencyName: "BlueCity Guides" },
+              { id: '3', image: "/Marrakesh.jpg", likes: [], location: "Marrakesh Souks", agencyName: "Marrakech Desert Star" },
+              { id: '4', image: "/Fes.jpg", likes: [], location: "Imperial Fes Medersa", agencyName: "Fes Heritage Expeditions" }
+            ]).map((post) => (
               <div 
-                key={idx} 
+                key={post.id} 
+                onClick={() => navigate(`/community#post-${post.id}`)}
                 className="group relative h-72 rounded-[2rem] overflow-hidden border border-slate-100 shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-500 cursor-pointer"
               >
                 <img 
-                  src={feed.img} 
-                  alt={feed.tag} 
+                  src={post.image || post.img || "/sahara-desert-maroc-marrocain-8.webp"} 
+                  alt={post.location || post.tag || "Community Post"} 
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                 />
                 
                 {/* Hover overlay */}
                 <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-6 z-10">
                   <span className="bg-white/20 backdrop-blur-md text-white font-extrabold text-[10px] px-3 py-1 rounded-full w-fit self-end border border-white/10 uppercase tracking-widest">
-                    #{feed.tag.replace(/\s+/g, '')}
+                    #{(post.location || post.tag || 'Morocco').split(',')[0].replace(/\s+/g, '')}
                   </span>
-                  <div className="flex items-center gap-2 text-white font-black text-sm">
-                    <FaHeart className="text-red-500 animate-pulse text-lg" />
-                    <span>{feed.likes} Likes</span>
+                  <div className="space-y-1 text-left">
+                    <p className="text-white/80 text-xs font-bold truncate">By {post.agencyName || "Travel Guide"}</p>
+                    <div className="flex items-center gap-2 text-white font-black text-sm">
+                      <FaHeart className="text-red-500 animate-pulse text-lg" />
+                      <span>{post.likes?.length || post.likes || 0} Likes</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -795,68 +871,91 @@ const Home = () => {
       )}
 
       {/* Immersive Story Viewer Modal */}
-      {activeStory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md">
-          {/* Progress bar at the top */}
-          <div className="absolute top-6 left-0 right-0 max-w-md mx-auto px-6 flex gap-1 z-55">
-            <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-white transition-all duration-100 ease-linear"
-                style={{ width: `${storyProgress}%` }}
-              />
-            </div>
+      {activeStoryIdx !== null && agenciesWithStories[activeStoryIdx.agencyIndex] && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md select-none">
+          {/* Progress bars at the top */}
+          <div className="absolute top-6 left-0 right-0 max-w-md mx-auto px-6 flex gap-1 z-50">
+            {agenciesWithStories[activeStoryIdx.agencyIndex].stories.map((_, i) => (
+              <div key={i} className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all ease-linear ${
+                    i < activeStoryIdx.storyIndex 
+                      ? 'bg-white w-full' 
+                      : i === activeStoryIdx.storyIndex 
+                        ? 'bg-white' 
+                        : 'bg-transparent w-0'
+                  }`}
+                  style={{ width: i === activeStoryIdx.storyIndex ? `${storyProgress}%` : undefined }}
+                />
+              </div>
+            ))}
           </div>
 
           {/* Close button */}
           <button 
-            onClick={() => setActiveStory(null)}
-            className="absolute top-8 right-6 text-white/70 hover:text-white text-3xl font-light z-55 select-none focus:outline-none cursor-pointer p-2 border-none bg-transparent"
+            onClick={() => setActiveStoryIdx(null)}
+            className="absolute top-8 right-6 text-white/70 hover:text-white text-3xl font-light z-50 focus:outline-none cursor-pointer p-2 border-none bg-transparent"
           >
             &times;
           </button>
 
           {/* Content Card */}
-          <div className="relative w-full max-w-md h-[80vh] mx-auto px-4 flex flex-col justify-between items-center text-center">
+          <div 
+            className="relative w-full max-w-md h-[85vh] md:h-[80vh] mx-auto flex flex-col justify-between items-center text-center overflow-hidden md:rounded-[2rem] bg-slate-900 border border-white/10"
+            onPointerDown={() => setIsStoryPaused(true)}
+            onPointerUp={() => setIsStoryPaused(false)}
+            onPointerLeave={() => setIsStoryPaused(false)}
+          >
+            {/* Nav Zones */}
+            <div 
+              className="absolute top-20 bottom-24 left-0 w-1/3 z-30 cursor-pointer" 
+              onClick={(e) => { e.stopPropagation(); handlePrevStory(); }}
+            />
+            <div 
+              className="absolute top-20 bottom-24 right-0 w-1/3 z-30 cursor-pointer" 
+              onClick={(e) => { e.stopPropagation(); handleNextStory(); }}
+            />
+
             {/* Agency Header info */}
-            <div className="flex items-center gap-3 self-start text-left bg-gradient-to-b from-black/80 to-transparent p-6 absolute top-0 left-0 right-0 z-20 rounded-t-[2rem]">
-              <img src={activeStory.avatar} alt={activeStory.name} className="w-10 h-10 rounded-full object-cover border border-white/20" />
+            <div 
+              className="flex items-center gap-3 self-start text-left bg-gradient-to-b from-black/80 to-transparent p-6 absolute top-0 left-0 right-0 z-40 cursor-pointer"
+              onClick={() => {
+                setActiveStoryIdx(null);
+                navigate(`/agency/${agenciesWithStories[activeStoryIdx.agencyIndex].id}`);
+              }}
+            >
+              <img src={agenciesWithStories[activeStoryIdx.agencyIndex].avatar || '/MorP.jpg'} alt={agenciesWithStories[activeStoryIdx.agencyIndex].name} className="w-10 h-10 rounded-full object-cover border border-white/20" />
               <div>
-                <h4 className="font-extrabold text-white text-sm">{activeStory.name}</h4>
-                <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Active Travel Story</span>
+                <h4 className="font-extrabold text-white text-sm">{agenciesWithStories[activeStoryIdx.agencyIndex].name}</h4>
+                <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">
+                  {Math.max(0, Math.floor((new Date() - new Date(agenciesWithStories[activeStoryIdx.agencyIndex].stories[activeStoryIdx.storyIndex].createdAt)) / (1000 * 60 * 60)))}h ago
+                </span>
               </div>
             </div>
 
             {/* Main Story Image */}
-            <div className="w-full h-full rounded-[2rem] overflow-hidden border border-white/10 relative">
+            <div className="w-full h-full relative">
               <img 
-                src={activeStory.story_image_url} 
+                src={agenciesWithStories[activeStoryIdx.agencyIndex].stories[activeStoryIdx.storyIndex].imageUrl} 
                 alt="Agency Active Story" 
                 className="w-full h-full object-cover" 
               />
-              {/* Optional Text Overlay */}
-              <div className="absolute bottom-20 left-0 right-0 px-6 py-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white">
-                <p className="text-sm font-semibold italic">"{activeStory.bio || 'Discover authentic Moroccan experiences and unforgettable adventures!'}"</p>
-              </div>
             </div>
 
             {/* Bottom Actions */}
-            <div className="absolute bottom-6 left-0 right-0 px-6 flex gap-4 z-20">
+            <div className="absolute bottom-6 left-0 right-0 px-6 flex gap-4 z-40">
               <button 
                 onClick={() => {
-                  setActiveStory(null);
-                  if (activeStory.isReal) {
-                    navigate(`/agency/${activeStory.id}`);
-                  } else {
-                    navigate(`/search`);
-                  }
+                  setActiveStoryIdx(null);
+                  navigate(`/agency/${agenciesWithStories[activeStoryIdx.agencyIndex].id}`);
                 }}
-                className="flex-1 bg-white hover:bg-slate-105 text-slate-900 font-extrabold py-3.5 px-6 rounded-2xl transition-all cursor-pointer text-sm shadow-lg border-none"
+                className="flex-1 bg-white hover:bg-slate-200 text-slate-900 font-extrabold py-3.5 px-6 rounded-2xl transition-all cursor-pointer text-sm shadow-lg border-none"
               >
-                View Experiences
+                View Profile
               </button>
               <button 
                 onClick={() => {
-                  setActiveStory(null);
+                  setActiveStoryIdx(null);
                   navigate(`/agency/messages`);
                 }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 px-6 rounded-2xl transition-all cursor-pointer text-sm shadow-lg shadow-blue-500/20 border-none"

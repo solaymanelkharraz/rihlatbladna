@@ -12,10 +12,12 @@ const Search = () => {
   
   // Read params and initialize states
   const queryDest = searchParams.get('dest') || '';
+  const queryActivity = searchParams.get('activity') || '';
+  const initialSearch = [queryDest, queryActivity].filter(Boolean).join(' ');
   const queryBudget = searchParams.get('budget');
   const queryPrice = queryBudget === 'Economy' ? 800 : queryBudget === 'Luxury' ? 5000 : 3000;
 
-  const [searchQuery, setSearchQuery] = useState(queryDest);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [priceRange, setPriceRange] = useState(queryPrice);
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedCities, setSelectedCities] = useState([]);
@@ -25,7 +27,9 @@ const Search = () => {
   // Synchronize state when query parameters shift during navigation
   const [prevParams, setPrevParams] = useState(searchParams.toString());
   if (searchParams.toString() !== prevParams) {
-    setSearchQuery(queryDest);
+    const newDest = searchParams.get('dest') || '';
+    const newActivity = searchParams.get('activity') || '';
+    setSearchQuery([newDest, newActivity].filter(Boolean).join(' '));
     setPriceRange(queryPrice);
     setPrevParams(searchParams.toString());
   }
@@ -63,12 +67,15 @@ const Search = () => {
     .filter(tour => {
       // 1. Text Search Query
       if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const matchesText = 
-          tour.title.toLowerCase().includes(q) || 
-          tour.location.toLowerCase().includes(q) ||
-          tour.agencyName.toLowerCase().includes(q);
-        if (!matchesText) return false;
+        const words = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+        const matchesAllWords = words.every(w => 
+          (tour.title && tour.title.toLowerCase().includes(w)) || 
+          (tour.location && tour.location.toLowerCase().includes(w)) ||
+          (tour.agencyName && tour.agencyName.toLowerCase().includes(w)) ||
+          (tour.tags && tour.tags.some(t => t.toLowerCase().includes(w))) ||
+          (tour.description && tour.description.toLowerCase().includes(w))
+        );
+        if (!matchesAllWords) return false;
       }
 
       // 2. Max Price

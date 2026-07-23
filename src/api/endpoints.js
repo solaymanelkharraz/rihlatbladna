@@ -5,8 +5,8 @@ export const authAPI = {
     const response = await api.post('/auth/login', { email, password });
     return response.data; // { success, token, user }
   },
-  register: async (name, email, password, role) => {
-    const response = await api.post('/auth/register', { name, email, password, role });
+  register: async (name, email, password, role, tourismLicenseNumber = null) => {
+    const response = await api.post('/auth/register', { name, email, password, role, tourismLicenseNumber });
     return response.data; // { success, token, user }
   },
   getMe: async () => {
@@ -150,6 +150,10 @@ export const adminAPI = {
   deleteUser: async (id) => {
     const response = await api.delete(`/auth/users/${id}`);
     return response.data; // { success, message }
+  },
+  verifyAgency: async (id) => {
+    const response = await api.put(`/auth/verify-agency/${id}`);
+    return response.data; // { success, message }
   }
 };
 
@@ -165,3 +169,11 @@ export const uploadAPI = {
     return response.data; // { success, message, url }
   }
 };
+
+export const walletAPI = {
+  topUp: async (amount) => {
+    const response = await api.post('/wallet/topup', { amount });
+    return response.data; // { success, message, credits }
+  }
+};
+

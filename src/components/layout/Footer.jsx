@@ -10,8 +10,8 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           {/* Brand Column */}
           <div className="col-span-1 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2 text-2xl font-bold text-white mb-6">
-              <FaGlobeAfrica className="text-amber-500" />
+            <Link to="/" className="flex items-center gap-3 text-2xl font-bold text-white mb-6 group">
+              <img src="/main_logo.png" alt="RihlatBladna Logo" className="h-11 w-auto object-contain group-hover:scale-105 transition-transform duration-500" />
               <span>Rihlat<span className="text-blue-500">Bladna</span></span>
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
